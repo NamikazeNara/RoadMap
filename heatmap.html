@@ -1,0 +1,88 @@
+// This Pine Script™ code is subject to the terms of the Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0) https://creativecommons.org/licenses/by-nc-sa/4.0/
+// © UAlgo
+//@version=6
+indicator('Open Interest (OI) Delta [UAlgo]', shorttitle = 'Open Interest (OI) Delta [UAlgo]', format = format.volume)
+
+// Open Interest (OI) Delta [UAlgo] Settings
+displayMode = input.string('Mode 1', 'OI Delta Display', options = ['Mode 1', 'Mode 2'], group = 'Open Interest (OI) Delta [UAlgo] Settings')
+posColor = input.color(color.teal, 'Positive Color', inline = 'colors', group = 'Open Interest (OI) Delta [UAlgo] Settings')
+negColor = input.color(color.maroon, 'Negative Color', inline = 'colors', group = 'Open Interest (OI) Delta [UAlgo] Settings')
+showLevels = input.bool(false, 'Show Levels', group = 'Open Interest (OI) Delta [UAlgo] Settings')
+colorBars = input.bool(false, 'Color Chart Bars', group = 'Open Interest (OI) Delta [UAlgo] Settings')
+barColorMode = input.string('Increase', 'Color Bars', options = ['Increase', 'Decrease'], group = 'Open Interest (OI) Delta [UAlgo] Settings')
+maLength = input.int(100, 'MA Length', group = 'Open Interest (OI) Delta [UAlgo] Settings')
+stdevPeriod = input.int(500, 'STDEV Period', group = 'Open Interest (OI) Delta [UAlgo] Settings')
+
+showLevel1 = input.bool(true, 'Level 1', inline = 'lv1', group = 'Open Interest (OI) Delta [UAlgo] Settings')
+levelValue1 = input.float(7, 'Normal OI Δ', inline = 'lv1', group = 'Open Interest (OI) Delta [UAlgo] Settings')
+level1Color = input.color(color.new(color.blue, 60), '', inline = 'lv1', group = 'Open Interest (OI) Delta [UAlgo] Settings')
+level1BarColor = input.color(color.blue, '', inline = 'lv1', group = 'Open Interest (OI) Delta [UAlgo] Settings')
+
+showLevel2 = input.bool(true, 'Level 2', inline = 'lv2', group = 'Open Interest (OI) Delta [UAlgo] Settings')
+levelValue2 = input.float(15, 'Medium OI Δ', inline = 'lv2', group = 'Open Interest (OI) Delta [UAlgo] Settings')
+level2Color = input.color(color.new(color.green, 60), '', inline = 'lv2', group = 'Open Interest (OI) Delta [UAlgo] Settings')
+level2BarColor = input.color(color.green, '', inline = 'lv2', group = 'Open Interest (OI) Delta [UAlgo] Settings')
+
+showLevel3 = input.bool(true, 'Level 3', inline = 'lv3', group = 'Open Interest (OI) Delta [UAlgo] Settings')
+levelValue3 = input.float(25, 'Large OI Δ', inline = 'lv3', group = 'Open Interest (OI) Delta [UAlgo] Settings')
+level3Color = input.color(color.new(color.orange, 60), '', inline = 'lv3', group = 'Open Interest (OI) Delta [UAlgo] Settings')
+level3BarColor = input.color(color.orange, '', inline = 'lv3', group = 'Open Interest (OI) Delta [UAlgo] Settings')
+
+showLevel4 = input.bool(true, 'Level 4', inline = 'lv4', group = 'Open Interest (OI) Delta [UAlgo] Settings')
+levelValue4 = input.float(35, 'Extreme OI Δ', inline = 'lv4', group = 'Open Interest (OI) Delta [UAlgo] Settings')
+level4Color = input.color(color.new(color.red, 60), '', inline = 'lv4', group = 'Open Interest (OI) Delta [UAlgo] Settings')
+level4BarColor = input.color(color.red, '', inline = 'lv4', group = 'Open Interest (OI) Delta [UAlgo] Settings')
+
+// Data calculations
+symbolStr = 'BINANCE' + ':' + string(syminfo.basecurrency) + 'USDT.P'
+oiTickerStr = str.format('{0}_OI', symbolStr)
+tfStr = syminfo.type == 'futures' and timeframe.isintraday ? '1D' : timeframe.period
+oiDelta = request.security(oiTickerStr, tfStr, close - close[1], ignore_invalid_symbol = true)
+oiValue = request.security(oiTickerStr, tfStr, close, ignore_invalid_symbol = true)
+
+oiDeltaEmaPos = ta.ema(oiDelta > 0 ? oiDelta : na, maLength)
+oiDeltaEmaNeg = ta.ema(oiDelta < 0 ? oiDelta : na, maLength)
+oiDeltaStdevNeg = ta.stdev(oiDeltaEmaNeg, stdevPeriod)
+oiDeltaStdevPos = ta.stdev(oiDeltaEmaPos, stdevPeriod)
+
+// Plotting OI Delta
+plot(displayMode == 'Mode 1' ? oiDelta : na, title = 'Mode 1 - OI Delta', style = plot.style_columns, color = oiDelta > 0 ? posColor : negColor)
+plot(displayMode == 'Mode 2' and oiDelta > 0 ? oiDelta : na, title = 'Mode 2 - OI Delta (+)', style = plot.style_columns, color = posColor)
+plot(displayMode == 'Mode 2' and oiDelta < 0 ? -oiDelta : na, title = 'Mode 2 - OI Delta (-)', style = plot.style_columns, color = negColor)
+
+// Plotting levels
+zeroLine = plot(0, color = na, display = display.none, editable = false)
+level1 = plot(showLevels ? oiDeltaStdevPos * levelValue1 : na, color = na, display = display.none, editable = false)
+levelNeg1 = plot(showLevels ? -oiDeltaStdevNeg * levelValue1 : na, color = na, display = display.none, editable = false)
+level2 = plot(showLevels ? oiDeltaStdevPos * levelValue2 : na, color = na, display = display.none, editable = false)
+levelNeg2 = plot(showLevels ? -oiDeltaStdevNeg * levelValue2 : na, color = na, display = display.none, editable = false)
+level3 = plot(showLevels ? oiDeltaStdevPos * levelValue3 : na, color = na, display = display.none, editable = false)
+levelNeg3 = plot(showLevels ? -oiDeltaStdevNeg * levelValue3 : na, color = na, display = display.none, editable = false)
+level4 = plot(showLevels ? oiDeltaStdevPos * levelValue4 : na, color = na, display = display.none, editable = false)
+levelNeg4 = plot(showLevels ? -oiDeltaStdevNeg * levelValue4 : na, color = na, display = display.none, editable = false)
+
+// Filling levels
+fill(zeroLine, level1, color = showLevels and showLevel1 ? level1Color : na, editable = false)
+fill(zeroLine, levelNeg1, color = showLevels and showLevel1 ? level1Color : na, editable = false)
+fill(level1, level2, color = showLevels and showLevel2 ? level2Color : na, editable = false)
+fill(levelNeg1, levelNeg2, color = showLevels and showLevel2 ? level2Color : na, editable = false)
+fill(level2, level3, color = showLevels and showLevel3 ? level3Color : na, editable = false)
+fill(levelNeg2, levelNeg3, color = showLevels and showLevel3 ? level3Color : na, editable = false)
+fill(level3, level4, color = showLevels and showLevel4 ? level4Color : na, editable = false)
+fill(levelNeg3, levelNeg4, color = showLevels and showLevel4 ? level4Color : na, editable = false)
+
+// Bar coloring logic
+isPosChange = oiDelta > 0
+isNegChange = oiDelta < 0
+cond1 = isPosChange and oiDelta <= oiDeltaStdevPos * levelValue1
+cond2 = isPosChange and oiDelta > oiDeltaStdevPos * levelValue1 and oiDelta < oiDeltaStdevPos * levelValue2
+cond3 = isPosChange and oiDelta >= oiDeltaStdevPos * levelValue2 and oiDelta < oiDeltaStdevPos * levelValue3
+cond4 = isPosChange and oiDelta >= oiDeltaStdevPos * levelValue3
+condNeg1 = isNegChange and oiDelta >= -oiDeltaStdevNeg * levelValue1
+condNeg2 = isNegChange and oiDelta < -oiDeltaStdevNeg * levelValue1 and oiDelta > -oiDeltaStdevNeg * levelValue2
+condNeg3 = isNegChange and oiDelta <= -oiDeltaStdevNeg * levelValue2 and oiDelta > -oiDeltaStdevNeg * levelValue3
+condNeg4 = isNegChange and oiDelta <= -oiDeltaStdevNeg * levelValue3
+
+barColor = colorBars ? barColorMode == 'Increase' ? cond1 and showLevel1 ? level1BarColor : cond2 and showLevel2 ? level2BarColor : cond3 and showLevel3 ? level3BarColor : cond4 and showLevel4 ? level4BarColor : na : condNeg1 and showLevel1 ? level1BarColor : condNeg2 and showLevel2 ? level2BarColor : condNeg3 and showLevel3 ? level3BarColor : condNeg4 and showLevel4 ? level4BarColor : na : na
+
+barcolor(barColor)
