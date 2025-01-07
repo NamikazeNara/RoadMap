@@ -1,0 +1,77 @@
+//@version=5
+indicator("ICT Concepts", overlay=true, max_lines_count=500, max_boxes_count=500)
+
+// Input Parameters
+session_color_ny = input.color(color.new(color.red, 80), title="NY Session Color")
+session_color_ldn = input.color(color.new(color.blue, 80), title="London Session Color")
+session_color_as = input.color(color.new(color.green, 80), title="Asian Session Color")
+fvg_color = input.color(color.new(color.orange, 90), title="Fair Value Gap Color")
+orderblock_color_bullish = input.color(color.new(color.green, 80), title="Bullish Order Block Color")
+orderblock_color_bearish = input.color(color.new(color.red, 80), title="Bearish Order Block Color")
+liquidity_zone_color = input.color(color.new(color.purple, 80), title="Liquidity Zone Color")
+
+// Market Structure Detection
+var string label_hh = "HH"
+var string label_hl = "HL"
+var string label_lh = "LH"
+var string label_ll = "LL"
+var float last_high = na
+var float last_low = na
+var direction = ""
+
+// Calculate Market Structure
+if high > last_high
+    label.new(bar_index, high, label_hh, style=label.style_label_down, color=color.new(color.green, 60))
+    last_high := high
+if low < last_low
+    label.new(bar_index, low, label_ll, style=label.style_label_up, color=color.new(color.red, 60))
+    last_low := low
+
+// Liquidity Zones
+plot(high + ta.atr(14), title="Liquidity Above", color=liquidity_zone_color, linewidth=2, style=plot.style_line)
+plot(low - ta.atr(14), title="Liquidity Below", color=liquidity_zone_color, linewidth=2, style=plot.style_line)
+
+// Order Blocks
+var bool bullish_order_block = false
+var bool bearish_order_block = false
+bullish_order_block := close[1] < open[1] and close > open
+bearish_order_block := close[1] > open[1] and close < open
+if bullish_order_block
+    box.new(bar_index[1], low[1], bar_index, high, bgcolor=orderblock_color_bullish, border_color=color.new(color.green, 0))
+if bearish_order_block
+    box.new(bar_index[1], high[1], bar_index, low, bgcolor=orderblock_color_bearish, border_color=color.new(color.red, 0))
+
+// Fair Value Gaps (FVGs)
+var bool fvg_detected = false
+fvg_detected := high[2] < low[0]
+if fvg_detected
+    box.new(bar_index[2], high[2], bar_index[0], low[0], bgcolor=fvg_color, border_color=color.new(color.orange, 0))
+
+// Kill Zones
+var int ny_start_hour = 13, ny_start_min = 30, ny_end_hour = 20, ny_end_min = 0
+var int ldn_start_hour = 8, ldn_start_min = 0, ldn_end_hour = 16, ldn_end_min = 0
+var int as_start_hour = 0, as_start_min = 0, as_end_hour = 8, as_end_min = 0
+
+year = year(time)
+month = month(time)
+day = dayofmonth(time)
+
+ny_start = timestamp(year, month, day, ny_start_hour, ny_start_min)
+ny_end = timestamp(year, month, day, ny_end_hour, ny_end_min)
+ldn_start = timestamp(year, month, day, ldn_start_hour, ldn_start_min)
+ldn_end = timestamp(year, month, day, ldn_end_hour, ldn_end_min)
+as_start = timestamp(year, month, day, as_start_hour, as_start_min)
+as_end = timestamp(year, month, day, as_end_hour, as_end_min)
+
+ny_killzone = (time >= ny_start and time <= ny_end)
+ldn_killzone = (time >= ldn_start and time <= ldn_end)
+as_killzone = (time >= as_start and time <= as_end)
+
+bgcolor(ny_killzone ? session_color_ny : na, title="NY Session")
+bgcolor(ldn_killzone ? session_color_ldn : na, title="London Session")
+bgcolor(as_killzone ? session_color_as : na, title="Asian Session")
+
+// Customizable Alerts
+alertcondition(high > ta.valuewhen(high > high[1], high, 0), title="Liquidity Zone Breach", message="Price entered Liquidity Zone")
+alertcondition(bullish_order_block, title="Bullish Order Block", message="Price entered Bullish Order Block")
+alertcondition(bearish_order_block, title="Bearish Order Block", message="Price entered Bearish Order Block")
